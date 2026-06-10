@@ -672,12 +672,33 @@ function renderTable() {
 
         const displayPath = (c.source_file || '').replace(/\\/g, '/').split('/').pop() || '—';
 
+function formatLocationCell(location, query) {
+    if (!location || location.toString().trim() === '') return `<span class="empty-cell">—</span>`;
+    let html = location.toString();
+    
+    // Highlight based on query if it's not empty
+    if (query && query.trim().length > 1) {
+        try {
+            const regex = new RegExp(`(${query.trim()})`, 'gi');
+            html = html.replace(regex, '<span style="background: rgba(245, 158, 11, 0.3); color: #fcd34d; font-weight: 600; padding: 0 2px; border-radius: 2px;">$1</span>');
+        } catch(e) {}
+    } else {
+        // Highlight known Odisha districts/cities
+        const knownPlaces = ['Bhubaneswar', 'Cuttack', 'Puri', 'Khordha', 'Balasore', 'Baleswar', 'Rourkela', 'Sambalpur', 'Berhampur', 'Brahmapur', 'Odisha', 'Orissa', 'Bhadrak', 'Angul', 'Dhenkanal', 'Kendrapara', 'Ganjam', 'Jajpur', 'Khurda'];
+        knownPlaces.forEach(place => {
+            const regex = new RegExp(`\\b(${place})\\b`, 'gi');
+            html = html.replace(regex, '<span style="color: var(--primary-color); font-weight: 600;">$1</span>');
+        });
+    }
+    return html;
+}
+
         tr.innerHTML = `
             <td class="col-id" style="color:var(--text-muted);font-weight:500;">#${c.id}</td>
             <td class="col-name" style="font-weight:600;">${statusDot}${formatCell(c.name)}</td>
             <td class="col-phone">${buildPhoneCellHtml(c.phone)}</td>
             <td class="col-email">${formatCell(c.email)}</td>
-            <td class="col-location">${formatCell(c.location)}</td>
+            <td class="col-location">${formatLocationCell(c.location, state.searchField === 'location' || state.searchField === 'all' ? state.search : '')}</td>
             <td class="col-file" title="${c.source_file||''}">${formatCell(displayPath)}</td>
             <td class="col-type">${formatCell(c.file_type)}</td>
             <td class="col-row">${formatCell(c.row_number)}</td>
@@ -808,7 +829,7 @@ const sbState = {
     query: '',
     total: 0,
     computing: false,
-    PAGE: 80            // items per render batch
+    PAGE: 50000            // items per render batch (show all)
 };
 
 async function openSourceBrowser() {
@@ -972,31 +993,7 @@ if (typeof IntersectionObserver !== 'undefined') {
 
 function initSourceBrowser() {
     const btn   = document.getElementById('source-browser-btn');
-    const modal = document.getElementById('source-browser-modal');
-    const closeBtn = document.getElementById('close-source-browser');
-    const searchInput = document.getElementById('sb-search');
-
-    if (btn)      btn.addEventListener('click', openSourceBrowser);
-    if (closeBtn) closeBtn.addEventListener('click', () => closeModal(modal));
-    if (modal)    modal.addEventListener('click', e => { if (e.target === modal) closeModal(modal); });
-
-    // Live search — debounced, hits API for server-side filtering
-    if (searchInput) {
-        searchInput.addEventListener('input', debounce(() => {
-            sbState.query = searchInput.value.trim();
-            loadSbData(sbState.query);
-        }, 300));
-    }
-
-    // Sort buttons
-    document.querySelectorAll('.sb-sort-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            document.querySelectorAll('.sb-sort-btn').forEach(b => b.classList.remove('sb-sort-active'));
-            btn.classList.add('sb-sort-active');
-            sbState.sort = btn.dataset.sort;
-            renderSbBatch(true);
-        });
-    });
+    if (btn) btn.addEventListener('click', () => { window.location.href = 'sources.html'; });
 }
 
 // ─── Bulk WhatsApp ────────────────────────────────────────────────────────────
@@ -1354,6 +1351,58 @@ function setupEventListeners() {
 
 // ─── WA Bar ───────────────────────────────────────────────────────────────────
 
+async function fetchWaTemplates() {
+    try {
+        const r = await fetch('/api/wa-templates');
+        if (r.ok) {
+            const data = await r.json();
+            const sel = document.getElementById('wa-template-select');
+            if (sel) {
+                sel.innerHTML = '<option value="">-- Custom Message --</option>' + 
+                    data.map(t => `<option value="${t.id}" data-msg="${t.message.replace(/"/g, '&quot;')}">${t.name}</option>`).join('');
+            }
+        }
+    } catch(e) { console.error('Failed to load WA templates', e); }
+}
+
+async function saveWaTemplate() {
+    const msg = el.waDefaultMessage.value.trim();
+    if (!msg) { showToast('Message is empty', 'error'); return; }
+    const name = prompt('Enter a name for this template:');
+    if (!name) return;
+    try {
+        const r = await fetch('/api/wa-templates', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, message: msg })
+        });
+        if (r.ok) {
+            showToast('Template saved', 'success');
+            await fetchWaTemplates();
+            const data = await r.json();
+            const sel = document.getElementById('wa-template-select');
+            if(sel) sel.value = data.id;
+        }
+    } catch(e) { showToast('Failed to save', 'error'); }
+}
+
+async function deleteWaTemplate() {
+    const sel = document.getElementById('wa-template-select');
+    if (!sel) return;
+    const id = sel.value;
+    if (!id) { showToast('No template selected', 'error'); return; }
+    if (!confirm('Delete this template?')) return;
+    try {
+        const r = await fetch(`/api/wa-templates/${id}`, { method: 'DELETE' });
+        if (r.ok) {
+            showToast('Template deleted', 'success');
+            await fetchWaTemplates();
+            el.waDefaultMessage.value = '';
+            state.defaultWaMessage = '';
+            refreshWaButtons();
+        }
+    } catch(e) { showToast('Failed to delete', 'error'); }
+}
+
 function initWaBar() {
     const saved = localStorage.getItem('waDefaultMessage') || '';
     state.defaultWaMessage = saved;
@@ -1371,12 +1420,42 @@ function initWaBar() {
         localStorage.removeItem('waDefaultMessage');
         refreshWaButtons();
         showToast('Message cleared', 'info');
+        const sel = document.getElementById('wa-template-select');
+        if (sel) sel.value = '';
     });
+
+    const sel = document.getElementById('wa-template-select');
+    if (sel) {
+        sel.addEventListener('change', () => {
+            const opt = sel.options[sel.selectedIndex];
+            if (opt.value) {
+                el.waDefaultMessage.value = opt.dataset.msg;
+                state.defaultWaMessage = opt.dataset.msg;
+                localStorage.setItem('waDefaultMessage', state.defaultWaMessage);
+                refreshWaButtons();
+            }
+        });
+    }
+    const saveBtn = document.getElementById('wa-save-template');
+    if (saveBtn) saveBtn.addEventListener('click', saveWaTemplate);
+    const delBtn = document.getElementById('wa-delete-template');
+    if (delBtn) delBtn.addEventListener('click', deleteWaTemplate);
+    
+    fetchWaTemplates();
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
 function init() {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('source')) {
+        state.sourcePath = urlParams.get('source');
+        const sfInput = document.getElementById('source-filter-input');
+        if (sfInput) sfInput.value = state.sourcePath;
+        const sfClear = document.getElementById('source-filter-clear');
+        if (sfClear) sfClear.classList.remove('hidden');
+    }
+
     initTheme();
     initCompactMode();
     initSourceFilter();

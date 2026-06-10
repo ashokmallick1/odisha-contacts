@@ -682,6 +682,8 @@ td {
     z-index: 50;
     border-radius: 12px;
     box-shadow: var(--shadow-md);
+    background: var(--header-bg);
+    border: 1px solid var(--border-color);
 }
 
 .dropdown-menu.hidden { display: none; }
@@ -775,7 +777,7 @@ table.hide-col-raw .col-raw { display: none; }
     color: var(--text-muted);
 }
 
-.wa-message-row { display: flex; gap: 8px; align-items: center; }
+.wa-message-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 
 .wa-message-input {
     flex: 1;
@@ -2146,3 +2148,5 @@ kbd {
     font-style: italic;
 }
 
+t d . c o l - f i l e   {   w h i t e - s p a c e :   p r e - w r a p ;   w o r d - b r e a k :   b r e a k - a l l ;   m a x - w i d t h :   n o n e ;   m i n - w i d t h :   2 5 0 p x ;   }  
+ 

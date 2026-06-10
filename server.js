@@ -28,6 +28,9 @@ function initDb() {
 
         // Truncate WAL so DB is fully up-to-date on disk
         try { db.exec("PRAGMA wal_checkpoint(TRUNCATE);"); } catch (_) {}
+        
+        // WhatsApp Templates table
+        db.exec("CREATE TABLE IF NOT EXISTS wa_templates (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, message TEXT);");
 
         console.log("Caching total contacts count...");
         cachedTotalContacts = db.prepare("SELECT COUNT(*) as count FROM contacts").all()[0].count;
@@ -166,7 +169,7 @@ function buildWhere(search, searchField, sourcePath, containsMode = false) {
 
     if (sourcePath) {
         whereParts.push('source_file LIKE ?');
-        params.push(sourcePath + '%');
+        params.push('%' + sourcePath + '%');
     }
 
     const whereClause = whereParts.length ? `WHERE ${whereParts.join(' AND ')}` : '';
@@ -511,6 +514,40 @@ app.get('/api/export', (req, res) => {
     } catch (err) {
         console.error("Error exporting:", err);
         res.status(500).json({ error: "Export failed: " + err.message });
+    }
+});
+
+// ─── API: WhatsApp Templates ──────────────────────────────────────────────────
+
+app.get('/api/wa-templates', (req, res) => {
+    try {
+        const conn = getDbConnection();
+        const rows = conn.prepare("SELECT * FROM wa_templates ORDER BY id ASC").all();
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/wa-templates', (req, res) => {
+    try {
+        const conn = getDbConnection();
+        const { name, message } = req.body;
+        if (!name || !message) return res.status(400).json({ error: 'Name and message required' });
+        const result = conn.prepare("INSERT INTO wa_templates (name, message) VALUES (?, ?)").run(name, message);
+        res.json({ id: result.lastInsertRowid, name, message });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.delete('/api/wa-templates/:id', (req, res) => {
+    try {
+        const conn = getDbConnection();
+        conn.prepare("DELETE FROM wa_templates WHERE id = ?").run(req.params.id);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
 });
 
