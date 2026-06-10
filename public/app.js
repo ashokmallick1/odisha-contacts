@@ -14,7 +14,7 @@ let state = {
     limit: 50,
     search: '',
     searchField: 'name',
-    searchMode: 'starts',       // 'starts' | 'contains'
+    searchMode: 'starts',
     orderBy: 'id',
     orderDir: 'asc',
     statusFilter: '',
@@ -22,11 +22,13 @@ let state = {
     totalRecords: 0,
     contacts: [],
     loading: false,
-    defaultWaMessage: '',
+    defaultWaMessage: "Sir/Madam, We are a prominent agency in Bhubaneswar, specialize in dealing with all typles of Loan's and Insurances . Along with Credit cards, . Personal Loan, Home Loan, Business Loan, etc ",
     noWaPhones: new Set(),
     sourcePath: '',
     dedup: false,
     exportBusy: false,
+    hasPhone: true,
+    random: true,
     currentContact: null,
     ftsAvailable: false
 };
@@ -543,7 +545,8 @@ async function fetchContacts() {
         search: state.search, searchField: state.searchField,
         dedup: state.dedup, sourcePath: state.sourcePath,
         contains: state.searchMode === 'contains',
-        orderBy: state.orderBy, orderDir: state.orderDir
+        orderBy: state.orderBy, orderDir: state.orderDir,
+        hasPhone: state.hasPhone, random: state.random
     });
 
     try {
@@ -1166,6 +1169,21 @@ function loadColumnPrefs() {
 // ─── Event Listeners ──────────────────────────────────────────────────────────
 
 function setupEventListeners() {
+    // Intercept WhatsApp link clicks to mark as used and hide row
+    el.tableBody.addEventListener('click', async (e) => {
+        const waLink = e.target.closest('.btn-wa');
+        if (waLink) {
+            const tr = waLink.closest('tr');
+            if (tr) {
+                const id = tr.querySelector('.col-id').textContent.replace('#', '');
+                try {
+                    await fetch('/api/contacts/' + id + '/mark-used', { method: 'POST' });
+                    tr.remove(); // Visually hide the row
+                } catch(err) { console.error('Failed to mark used', err); }
+            }
+        }
+    });
+
     // Theme
     el.themeToggle.addEventListener('click', () => {
         const isDark = document.body.classList.contains('dark-theme');

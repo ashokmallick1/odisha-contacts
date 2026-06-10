@@ -2146,3 +2146,59 @@ kbd {
     font-style: italic;
 }
 
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+    .top-toolbar { 
+        flex-direction: column; 
+        gap: 8px; 
+        position: sticky; 
+        top: 0; 
+        z-index: 100; 
+        padding: 10px; 
+        background: var(--bg-color);
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    .wa-message-bar { width: 100%; flex-wrap: wrap; }
+    #wa-default-msg { width: 100%; }
+    
+    /* Responsive Table as Cards */
+    table, thead, tbody, th, td, tr { display: block; }
+    thead tr { display: none; }
+    tr { 
+        margin-bottom: 12px; 
+        border: 1px solid var(--border-color); 
+        border-radius: 8px; 
+        padding: 12px; 
+        background: var(--bg-color); 
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    td { 
+        display: flex; 
+        justify-content: space-between; 
+        align-items: center;
+        border-bottom: 1px solid var(--border-color); 
+        padding: 8px 4px; 
+    }
+    td:last-child { border-bottom: none; }
+    
+    td.col-id::before { content: "ID"; font-weight: 600; color: var(--text-muted); }
+    td.col-name::before { content: "Name"; font-weight: 600; color: var(--text-muted); }
+    td.col-phone::before { content: "Phone"; font-weight: 600; color: var(--text-muted); }
+    td.col-email::before { content: "Email"; font-weight: 600; color: var(--text-muted); }
+    td.col-location::before { content: "Location"; font-weight: 600; color: var(--text-muted); }
+    td.col-action::before { content: "Action"; font-weight: 600; color: var(--text-muted); }
+    
+    /* Hide non-essential columns */
+    .col-file, .col-type, .col-row, .col-sheet, .col-raw { display: none !important; }
+    
+    /* Big tap targets */
+    .btn-wa { 
+        padding: 12px 24px; 
+        width: 100%; 
+        justify-content: center; 
+        margin-top: 8px; 
+        font-size: 1.1rem; 
+    }
+    .btn-copy-phone { padding: 12px; }
+}
+

@@ -36,6 +36,18 @@ function initDb() {
 
         // Detect FTS5 index
         checkFts();
+        
+        // Setup State Tables
+        db.exec(`
+            CREATE TABLE IF NOT EXISTS app_users (username TEXT PRIMARY KEY, password TEXT, role TEXT);
+            CREATE TABLE IF NOT EXISTS used_contacts (contact_id INTEGER PRIMARY KEY);
+        `);
+        
+        const adminExists = db.prepare("SELECT 1 FROM app_users WHERE username = 'admin'").all().length > 0;
+        if (!adminExists) {
+            db.prepare("INSERT INTO app_users (username, password, role) VALUES (?, ?, ?)").run('admin', 'Zero@12345', 'admin');
+        }
+        
     } catch (err) {
         console.error("Failed to initialize database:", err);
     }
@@ -56,15 +68,18 @@ app.use(express.json());
 
 // ─── Basic Authentication ──────────────────────────────────────────────────────
 app.use((req, res, next) => {
+    // Allow public access to assets if needed, but here we secure everything
     const b64auth = (req.headers.authorization || '').split(' ')[1] || '';
     const [login, password] = Buffer.from(b64auth, 'base64').toString().split(':');
     
-    // Check credentials (user: subha, pass: Zero@1234)
-    if (login === 'subha' && password === 'Zero@1234') {
-        return next();
-    }
+    try {
+        const user = getDbConnection().prepare("SELECT * FROM app_users WHERE username = ? AND password = ?").all(login, password)[0];
+        if (user) {
+            req.user = user;
+            return next();
+        }
+    } catch(e) {}
     
-    // Challenge browser for credentials
     res.set('WWW-Authenticate', 'Basic realm="Secure Contacts Database"');
     res.status(401).send('Authentication required.');
 });
@@ -137,9 +152,12 @@ function withTimeout(fn, ms = 25000) {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function buildWhere(search, searchField, sourcePath, containsMode = false) {
+function buildWhere(search, searchField, sourcePath, containsMode = false, hasPhone = false, isRandom = false) {
     const whereParts = [];
     const params = [];
+
+    if (hasPhone) whereParts.push(`phone != '' AND phone IS NOT NULL`);
+    if (isRandom) whereParts.push(`id NOT IN (SELECT contact_id FROM used_contacts)`);
 
     if (search) {
         const trimmed = search.trim();
@@ -190,6 +208,46 @@ function buildWhere(search, searchField, sourcePath, containsMode = false) {
     return { whereClause, params };
 }
 
+// ─── API: User Management ───────────────────────────────────────────────────────
+
+app.get('/api/users', (req, res) => {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+    try {
+        const users = getDbConnection().prepare("SELECT username, role FROM app_users").all();
+        res.json(users);
+    } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/users', (req, res) => {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+    const { username, password } = req.body;
+    if (!username || !password) return res.status(400).json({ error: 'Missing credentials' });
+    try {
+        getDbConnection().prepare("INSERT INTO app_users (username, password, role) VALUES (?, ?, 'user')").run(username, password);
+        res.json({ success: true });
+    } catch(err) { res.status(400).json({ error: 'User may already exist' }); }
+});
+
+app.delete('/api/users/:username', (req, res) => {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+    if (req.params.username === 'admin') return res.status(400).json({ error: 'Cannot delete admin' });
+    try {
+        getDbConnection().prepare("DELETE FROM app_users WHERE username = ?").run(req.params.username);
+        res.json({ success: true });
+    } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// ─── API: Mark Contact Used ───────────────────────────────────────────────────
+
+app.post('/api/contacts/:id/mark-used', (req, res) => {
+    const id = parseInt(req.params.id);
+    if (!id) return res.status(400).json({ error: 'Invalid ID' });
+    try {
+        getDbConnection().prepare("INSERT OR IGNORE INTO used_contacts (contact_id) VALUES (?)").run(id);
+        res.json({ success: true });
+    } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
 // ─── API: Contacts ────────────────────────────────────────────────────────────
 
 app.get('/api/contacts', async (req, res) => {
@@ -202,6 +260,8 @@ app.get('/api/contacts', async (req, res) => {
         const sourcePath   = req.query.sourcePath ? req.query.sourcePath.trim() : '';
         const dedup        = req.query.dedup === 'true';
         const containsMode = req.query.contains === 'true';
+        const hasPhone     = req.query.hasPhone === 'true';
+        const isRandom     = req.query.random === 'true';
         const rawOrderBy   = req.query.orderBy || 'id';
         const rawOrderDir  = req.query.orderDir === 'desc' ? 'DESC' : 'ASC';
         const orderByCol   = SORTABLE_COLS.has(rawOrderBy) ? rawOrderBy : 'id';
@@ -213,18 +273,26 @@ app.get('/api/contacts', async (req, res) => {
         }
 
         // Check LRU cache
-        const ck = cacheKey({ page, limit, search, searchField, sourcePath, dedup, containsMode, orderByCol, rawOrderDir });
+        const ck = cacheKey({ page, limit, search, searchField, sourcePath, dedup, containsMode, orderByCol, rawOrderDir, hasPhone, isRandom });
         const cached = cacheGet(ck);
         if (cached) {
             console.log(`[contacts] CACHE HIT page=${page}`);
             return res.json(cached);
         }
 
-        const { whereClause, params } = buildWhere(search, searchField, sourcePath, containsMode);
+        const { whereClause, params } = buildWhere(search, searchField, sourcePath, containsMode, hasPhone, isRandom);
         const startTime = Date.now();
         let data = [], totalRecords = 0;
 
-        if (dedup) {
+        if (isRandom) {
+            const maxId = cachedTotalContacts || 7000000;
+            const randomOffset = Math.floor(Math.random() * maxId);
+            const randomWhere = whereClause ? `${whereClause} AND id >= ${randomOffset}` : `WHERE id >= ${randomOffset}`;
+            
+            data = await withTimeout(() => conn.prepare(`SELECT * FROM contacts ${randomWhere} ORDER BY id ASC LIMIT ?`).all(...params, limit));
+            totalRecords = limit * 10; // Mock pagination to allow "Next" clicks
+            
+        } else if (dedup) {
             const dedupGroup = `GROUP BY CASE WHEN TRIM(COALESCE(phone,''))='' THEN CAST(id AS TEXT) ELSE LOWER(phone) END`;
             const countKey = cacheKey({ type: 'count', search, searchField, sourcePath, dedup, containsMode });
             totalRecords = getCount(countKey, () =>
