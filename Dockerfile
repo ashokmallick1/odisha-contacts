@@ -1,5 +1,5 @@
 # Use Node.js 22 to get native SQLite support
-FROM node:22-alpine
+FROM node:22-bookworm-slim
 
 # Set the working directory inside the container
 WORKDIR /usr/src/app
