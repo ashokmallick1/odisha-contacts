@@ -44,6 +44,7 @@ function initDb() {
         db.exec(`
             CREATE TABLE IF NOT EXISTS app_users (username TEXT PRIMARY KEY, password TEXT, role TEXT);
             CREATE TABLE IF NOT EXISTS used_contacts (contact_id INTEGER PRIMARY KEY);
+            CREATE TABLE IF NOT EXISTS user_activity_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, contact_id INTEGER, action TEXT, date_sent TEXT);
         `);
         
         const adminExists = db.prepare("SELECT 1 FROM app_users WHERE username = 'admin'").all().length > 0;
@@ -251,8 +252,31 @@ app.post('/api/contacts/:id/mark-used', (req, res) => {
     const id = parseInt(req.params.id);
     if (!id) return res.status(400).json({ error: 'Invalid ID' });
     try {
-        getDbConnection().prepare("INSERT OR IGNORE INTO used_contacts (contact_id) VALUES (?)").run(id);
+        const username = req.user ? req.user.username : 'unknown';
+        const dateSent = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+        
+        const db = getDbConnection();
+        db.prepare("INSERT OR IGNORE INTO used_contacts (contact_id) VALUES (?)").run(id);
+        db.prepare("INSERT INTO user_activity_logs (username, contact_id, action, date_sent) VALUES (?, ?, ?, ?)").run(username, id, 'whatsapp', dateSent);
+        
         res.json({ success: true });
+    } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// ─── API: Admin Activity Logs ──────────────────────────────────────────────────
+app.get('/api/admin/activity', (req, res) => {
+    if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ error: 'Access denied' });
+    }
+    try {
+        const db = getDbConnection();
+        const activity = db.prepare(`
+            SELECT date_sent as date, username, COUNT(*) as count 
+            FROM user_activity_logs 
+            GROUP BY date_sent, username 
+            ORDER BY date_sent DESC, username ASC
+        `).all();
+        res.json(activity);
     } catch(err) { res.status(500).json({ error: err.message }); }
 });
 

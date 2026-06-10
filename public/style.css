@@ -2148,5 +2148,79 @@ kbd {
     font-style: italic;
 }
 
-t d . c o l - f i l e   {   w h i t e - s p a c e :   p r e - w r a p ;   w o r d - b r e a k :   b r e a k - a l l ;   m a x - w i d t h :   n o n e ;   m i n - w i d t h :   2 5 0 p x ;   }  
- 
+td.col-file { white-space: pre-wrap; word-break: break-all; max-width: none; min-width: 250px; }
+
+/* ─── Mobile Responsiveness ───────────────────────────────────────────────── */
+@media (max-width: 768px) {
+    /* Header layout */
+    .header {
+        flex-direction: column;
+        align-items: flex-start;
+        height: auto;
+        padding: 10px 16px;
+        gap: 10px;
+    }
+    
+    .header-actions {
+        width: 100%;
+        overflow-x: auto;
+        padding-bottom: 5px;
+    }
+    
+    /* Toolbar layout */
+    .toolbar {
+        flex-direction: column;
+        align-items: stretch;
+        height: auto;
+        padding: 12px 16px;
+        gap: 12px;
+    }
+    
+    .search-container {
+        max-width: 100%;
+    }
+    
+    .toolbar-actions {
+        width: 100%;
+        flex-wrap: wrap;
+        justify-content: space-between;
+    }
+    
+    .pagination {
+        width: 100%;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+    
+    /* Table layout */
+    .table-container {
+        margin: 0 16px;
+        width: auto;
+        overflow-x: auto;
+    }
+    
+    td, th {
+        padding: 10px;
+        font-size: 0.8rem;
+    }
+    
+    /* Modals & Drawers */
+    .drawer-content {
+        width: 100%;
+        right: -100%;
+    }
+    
+    .bulk-wa-panel {
+        width: 100%;
+        max-width: none;
+        bottom: 0;
+        right: 0;
+        border-radius: 12px 12px 0 0;
+    }
+    
+    .modal-content {
+        width: 95%;
+        margin: 10px;
+        max-height: 90vh;
+    }
+}
