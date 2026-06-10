@@ -1503,11 +1503,65 @@ function init() {
     loadSession();
     setupEventListeners();
     initWaBar();
+    initColumnResizing();
     updateSearchModeUI();
     updateSortIndicators();
     fetchStats();
     fetchSources();
     fetchContacts();
+}
+
+// ─── Column Resizing ──────────────────────────────────────────────────────────
+
+function initColumnResizing() {
+    const table = document.getElementById('contacts-table');
+    if (!table) return;
+    const cols = table.querySelectorAll('th.resizable');
+    
+    // Load saved widths
+    const savedWidths = JSON.parse(localStorage.getItem('colWidths') || '{}');
+    cols.forEach(col => {
+        const colId = col.getAttribute('data-col') || col.className.split(' ').find(c => c.startsWith('col-'));
+        if (colId && savedWidths[colId]) {
+            col.style.width = savedWidths[colId];
+        }
+        
+        const resizer = col.querySelector('.resizer');
+        if (!resizer) return;
+        
+        let x = 0;
+        let w = 0;
+        
+        const mouseDownHandler = function(e) {
+            x = e.clientX;
+            const styles = window.getComputedStyle(col);
+            w = parseInt(styles.width, 10);
+            
+            document.addEventListener('mousemove', mouseMoveHandler);
+            document.addEventListener('mouseup', mouseUpHandler);
+            resizer.classList.add('resizing');
+            e.stopPropagation(); // prevent sort
+        };
+        
+        const mouseMoveHandler = function(e) {
+            const dx = e.clientX - x;
+            col.style.width = `${w + dx}px`;
+        };
+        
+        const mouseUpHandler = function() {
+            document.removeEventListener('mousemove', mouseMoveHandler);
+            document.removeEventListener('mouseup', mouseUpHandler);
+            resizer.classList.remove('resizing');
+            
+            if (colId) {
+                savedWidths[colId] = col.style.width;
+                localStorage.setItem('colWidths', JSON.stringify(savedWidths));
+            }
+        };
+        
+        resizer.addEventListener('mousedown', mouseDownHandler);
+        resizer.addEventListener('click', (e) => e.stopPropagation());
+    });
 }
 
 document.addEventListener('DOMContentLoaded', init);

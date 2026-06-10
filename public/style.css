@@ -2224,3 +2224,24 @@ td.col-file { white-space: pre-wrap; word-break: break-all; max-width: none; min
         max-height: 90vh;
     }
 }
+
+/* ─── Column Resizing ─────────────────────────────────────────────────────── */
+th.resizable {
+    position: relative;
+}
+
+.resizer {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 5px;
+    cursor: col-resize;
+    user-select: none;
+    height: 100%;
+    z-index: 10;
+}
+
+.resizer:hover, .resizer.resizing {
+    background-color: var(--primary-color);
+    opacity: 0.5;
+}
