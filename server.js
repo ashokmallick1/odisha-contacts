@@ -382,6 +382,30 @@ app.get('/api/contacts', async (req, res) => {
             );
         }
 
+        // Location extraction fallback
+        if (data && data.length > 0) {
+            data.forEach(c => {
+                if (!c.location || c.location.trim() === '' || c.location === 'NULL' || c.location === '—') {
+                    if (c.row_data) {
+                        const rowDataStr = String(c.row_data);
+                        let parts = rowDataStr.split(',').map(s => s.trim()).filter(s => s.length > 5);
+                        const cName = String(c.name || '').toLowerCase();
+                        const cPhone = String(c.phone || '');
+                        const cEmail = String(c.email || '').toLowerCase();
+                        
+                        if (cName) parts = parts.filter(p => { const pl = p.toLowerCase(); return !cName.includes(pl) && !pl.includes(cName); });
+                        if (cPhone) parts = parts.filter(p => !p.includes(cPhone));
+                        if (cEmail) parts = parts.filter(p => { const pl = p.toLowerCase(); return !cEmail.includes(pl) && !pl.includes(cEmail); });
+                        
+                        parts.sort((a, b) => b.length - a.length);
+                        if (parts.length > 0) {
+                            c.location = parts[0];
+                        }
+                    }
+                }
+            });
+        }
+
         const queryTimeMs = Date.now() - startTime;
         console.log(`[contacts] dedup=${dedup} contains=${containsMode} search='${search}' order=${orderByCol} ${rawOrderDir} → ${totalRecords} rows in ${queryTimeMs}ms`);
 
