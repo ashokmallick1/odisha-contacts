@@ -152,12 +152,17 @@ function withTimeout(fn, ms = 25000) {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function buildWhere(search, searchField, sourcePath, containsMode = false, hasPhone = false, isRandom = false) {
+function buildWhere(search, searchField, sourcePath, containsMode = false, hasPhone = false, isRandom = false, showUsed = false) {
     const whereParts = [];
     const params = [];
 
     if (hasPhone) whereParts.push(`phone != '' AND phone IS NOT NULL`);
-    if (isRandom) whereParts.push(`id NOT IN (SELECT contact_id FROM used_contacts)`);
+    
+    if (showUsed) {
+        whereParts.push(`id IN (SELECT contact_id FROM used_contacts)`);
+    } else if (isRandom) {
+        whereParts.push(`id NOT IN (SELECT contact_id FROM used_contacts)`);
+    }
 
     if (search) {
         const trimmed = search.trim();
@@ -262,6 +267,7 @@ app.get('/api/contacts', async (req, res) => {
         const containsMode = req.query.contains === 'true';
         const hasPhone     = req.query.hasPhone === 'true';
         const isRandom     = req.query.random === 'true';
+        const showUsed     = req.query.showUsed === 'true';
         const rawOrderBy   = req.query.orderBy || 'id';
         const rawOrderDir  = req.query.orderDir === 'desc' ? 'DESC' : 'ASC';
         const orderByCol   = SORTABLE_COLS.has(rawOrderBy) ? rawOrderBy : 'id';
@@ -273,18 +279,18 @@ app.get('/api/contacts', async (req, res) => {
         }
 
         // Check LRU cache
-        const ck = cacheKey({ page, limit, search, searchField, sourcePath, dedup, containsMode, orderByCol, rawOrderDir, hasPhone, isRandom });
+        const ck = cacheKey({ page, limit, search, searchField, sourcePath, dedup, containsMode, orderByCol, rawOrderDir, hasPhone, isRandom, showUsed });
         const cached = cacheGet(ck);
         if (cached) {
             console.log(`[contacts] CACHE HIT page=${page}`);
             return res.json(cached);
         }
 
-        const { whereClause, params } = buildWhere(search, searchField, sourcePath, containsMode, hasPhone, isRandom);
+        const { whereClause, params } = buildWhere(search, searchField, sourcePath, containsMode, hasPhone, isRandom, showUsed);
         const startTime = Date.now();
         let data = [], totalRecords = 0;
 
-        if (isRandom) {
+        if (isRandom && !showUsed) {
             const maxId = cachedTotalContacts || 7000000;
             const randomOffset = Math.floor(Math.random() * maxId);
             const randomWhere = whereClause ? `${whereClause} AND id >= ${randomOffset}` : `WHERE id >= ${randomOffset}`;

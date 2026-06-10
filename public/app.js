@@ -29,6 +29,7 @@ let state = {
     exportBusy: false,
     hasPhone: true,
     random: true,
+    showUsed: false,
     currentContact: null,
     ftsAvailable: false
 };
@@ -54,6 +55,7 @@ const el = {
     // exportBtn: removed
     filterChips: document.getElementById('filter-chips'),
     tableBody: document.getElementById('table-body'),
+    toggleUsedBtn: document.getElementById('toggle-used-btn'),
     tableLoadingOverlay: document.getElementById('table-loading-overlay'),
     contactsTable: document.getElementById('contacts-table'),
     btnFirst: document.getElementById('btn-first'),
@@ -546,7 +548,7 @@ async function fetchContacts() {
         dedup: state.dedup, sourcePath: state.sourcePath,
         contains: state.searchMode === 'contains',
         orderBy: state.orderBy, orderDir: state.orderDir,
-        hasPhone: state.hasPhone, random: state.random
+        hasPhone: state.hasPhone, random: state.random, showUsed: state.showUsed
     });
 
     try {
@@ -1178,11 +1180,23 @@ function setupEventListeners() {
                 const id = tr.querySelector('.col-id').textContent.replace('#', '');
                 try {
                     await fetch('/api/contacts/' + id + '/mark-used', { method: 'POST' });
-                    tr.remove(); // Visually hide the row
+                    if (!state.showUsed) tr.remove(); // Visually hide the row
                 } catch(err) { console.error('Failed to mark used', err); }
             }
         }
     });
+
+    // Used Contacts Toggle
+    if (el.toggleUsedBtn) {
+        el.toggleUsedBtn.addEventListener('click', () => {
+            state.showUsed = !state.showUsed;
+            el.toggleUsedBtn.classList.toggle('btn-primary', state.showUsed);
+            el.toggleUsedBtn.classList.toggle('btn-secondary', !state.showUsed);
+            el.toggleUsedBtn.textContent = state.showUsed ? "Back to New Leads" : "View Used Contacts";
+            state.currentPage = 1;
+            fetchContacts();
+        });
+    }
 
     // Theme
     el.themeToggle.addEventListener('click', () => {
