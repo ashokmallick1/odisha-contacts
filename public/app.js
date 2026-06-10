@@ -1394,10 +1394,31 @@ async function fetchWaTemplates() {
         const r = await fetch('/api/wa-templates');
         if (r.ok) {
             const data = await r.json();
-            const sel = document.getElementById('wa-template-select');
-            if (sel) {
-                sel.innerHTML = '<option value="">-- Custom Message --</option>' + 
-                    data.map(t => `<option value="${t.id}" data-msg="${t.message.replace(/"/g, '&quot;')}">${t.name}</option>`).join('');
+            const container = document.getElementById('wa-template-radios');
+            if (container) {
+                let html = `
+                    <label style="cursor:pointer;">
+                        <input type="radio" name="wa_template" value="" data-msg=""> Custom
+                    </label>
+                `;
+                html += data.map(t => `
+                    <label style="cursor:pointer;">
+                        <input type="radio" name="wa_template" value="${t.id}" data-msg="${t.message.replace(/"/g, '&quot;')}"> ${t.name}
+                    </label>
+                `).join('');
+                container.innerHTML = html;
+                
+                container.querySelectorAll('input[type="radio"]').forEach(radio => {
+                    radio.addEventListener('change', (e) => {
+                        const opt = e.target;
+                        if (opt.value) {
+                            el.waDefaultMessage.value = opt.dataset.msg;
+                            state.defaultWaMessage = opt.dataset.msg;
+                            localStorage.setItem('waDefaultMessage', state.defaultWaMessage);
+                            refreshWaButtons();
+                        }
+                    });
+                });
             }
         }
     } catch(e) { console.error('Failed to load WA templates', e); }
@@ -1417,17 +1438,16 @@ async function saveWaTemplate() {
             showToast('Template saved', 'success');
             await fetchWaTemplates();
             const data = await r.json();
-            const sel = document.getElementById('wa-template-select');
-            if(sel) sel.value = data.id;
+            const newRadio = document.querySelector(`input[name="wa_template"][value="${data.id}"]`);
+            if(newRadio) newRadio.checked = true;
         }
     } catch(e) { showToast('Failed to save', 'error'); }
 }
 
 async function deleteWaTemplate() {
-    const sel = document.getElementById('wa-template-select');
-    if (!sel) return;
-    const id = sel.value;
-    if (!id) { showToast('No template selected', 'error'); return; }
+    const checkedRadio = document.querySelector('input[name="wa_template"]:checked');
+    if (!checkedRadio || !checkedRadio.value) { showToast('No template selected', 'error'); return; }
+    const id = checkedRadio.value;
     if (!confirm('Delete this template?')) return;
     try {
         const r = await fetch(`/api/wa-templates/${id}`, { method: 'DELETE' });
@@ -1458,22 +1478,10 @@ function initWaBar() {
         localStorage.removeItem('waDefaultMessage');
         refreshWaButtons();
         showToast('Message cleared', 'info');
-        const sel = document.getElementById('wa-template-select');
-        if (sel) sel.value = '';
+        const customRadio = document.querySelector('input[name="wa_template"][value=""]');
+        if (customRadio) customRadio.checked = true;
     });
 
-    const sel = document.getElementById('wa-template-select');
-    if (sel) {
-        sel.addEventListener('change', () => {
-            const opt = sel.options[sel.selectedIndex];
-            if (opt.value) {
-                el.waDefaultMessage.value = opt.dataset.msg;
-                state.defaultWaMessage = opt.dataset.msg;
-                localStorage.setItem('waDefaultMessage', state.defaultWaMessage);
-                refreshWaButtons();
-            }
-        });
-    }
     const saveBtn = document.getElementById('wa-save-template');
     if (saveBtn) saveBtn.addEventListener('click', saveWaTemplate);
     const delBtn = document.getElementById('wa-delete-template');

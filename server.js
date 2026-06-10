@@ -31,6 +31,12 @@ function initDb() {
         
         // WhatsApp Templates table
         db.exec("CREATE TABLE IF NOT EXISTS wa_templates (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, message TEXT);");
+        
+        const countTemplates = db.prepare("SELECT COUNT(*) as c FROM wa_templates").all()[0].c;
+        if (countTemplates === 0) {
+            db.prepare("INSERT INTO wa_templates (name, message) VALUES (?, ?)").run('Message 1', 'Hello! Are you planning any of the following?\n🏠 Buy a House\n🚗 Buy a Vehicle\n📈 Expand Your Business\n💰 Arrange Funds for Personal Needs\n\nReply with:\nYES - if you need a loan\nNO - if not required right now\n\nWe\'ll share suitable loan offers based on your requirement.');
+            db.prepare("INSERT INTO wa_templates (name, message) VALUES (?, ?)").run('Message 2', 'Hello, this is a friendly follow-up regarding your recent inquiry. Please let us know if you need any further assistance or details.');
+        }
 
         console.log("Caching total contacts count...");
         // Fast O(1) row count approximation using MAX(id) to prevent 4.8GB table scan over network mount

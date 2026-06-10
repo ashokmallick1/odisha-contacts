@@ -110,9 +110,11 @@
             <div class="wa-bar-body">
                 <label for="wa-default-message" class="wa-bar-label">WhatsApp Default Message <span class="wa-bar-hint">(applied to all phone number links on this page)</span></label>
                 <div class="wa-message-row">
-                    <select id="wa-template-select" class="wa-message-input" style="width:160px; flex:none; padding: 10px;">
-                        <option value="">-- Custom Message --</option>
-                    </select>
+                    <div id="wa-template-radios" class="wa-message-radios" style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                        <!-- Rendered dynamically via JS -->
+                    </div>
+                </div>
+                <div class="wa-message-row" style="margin-top: 10px;">
                     <input type="text" id="wa-default-message" class="wa-message-input" placeholder="e.g. Hello, I found your contact in the Odisha database..." autocomplete="off">
                     <button id="wa-save-template" class="btn btn-secondary" title="Save as template">Save</button>
                     <button id="wa-delete-template" class="btn btn-secondary wa-clear-btn" title="Delete template">Delete</button>
