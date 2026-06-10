@@ -49,7 +49,7 @@ const el = {
     sourceFilterWrapper: document.getElementById('source-filter-wrapper'),
     statusFilter: document.getElementById('status-filter'),
     dedupToggle: document.getElementById('dedup-toggle'),
-    exportBtn: document.getElementById('export-btn'),
+    // exportBtn: removed
     filterChips: document.getElementById('filter-chips'),
     tableBody: document.getElementById('table-body'),
     tableLoadingOverlay: document.getElementById('table-loading-overlay'),
@@ -1258,21 +1258,21 @@ function setupEventListeners() {
         saveSession();
     });
 
-    // Export
-    el.exportBtn.addEventListener('click', async () => {
-        if (state.exportBusy) return;
-        state.exportBusy = true;
-        const orig = el.exportBtn.innerHTML;
-        el.exportBtn.disabled = true;
-        el.exportBtn.innerHTML = `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> Exporting…`;
-        try {
-            const params = new URLSearchParams({ search: state.search, searchField: state.searchField, sourcePath: state.sourcePath, dedup: state.dedup, maxRows: 100000, contains: state.searchMode === 'contains' });
-            const a = document.createElement('a'); a.href = `/api/export?${params}`; a.download = ''; document.body.appendChild(a); a.click(); document.body.removeChild(a);
-            showToast('CSV export started!');
-        } finally {
-            setTimeout(() => { state.exportBusy = false; el.exportBtn.disabled = false; el.exportBtn.innerHTML = orig; }, 3000);
-        }
-    });
+// 
+// 
+// 
+// 
+// 
+// 
+// 
+// 
+// 
+// 
+// 
+// 
+// 
+// 
+// 
 
     // Jump to ID
     el.jumpToIdBtn.addEventListener('click', jumpToId);
@@ -1304,7 +1304,7 @@ function setupEventListeners() {
             if (e.key === 'ArrowRight' && state.currentPage < state.totalPages) { e.preventDefault(); state.currentPage++; fetchContacts(); return; }
             if (e.key === 'Home') { e.preventDefault(); if (state.currentPage > 1) { state.currentPage = 1; fetchContacts(); } return; }
             if (e.key === 'End')  { e.preventDefault(); if (state.currentPage < state.totalPages) { state.currentPage = state.totalPages; fetchContacts(); } return; }
-            if ((e.ctrlKey || e.metaKey) && e.key === 'e') { e.preventDefault(); el.exportBtn.click(); return; }
+            // export shortcut removed
             if ((e.ctrlKey || e.metaKey) && e.key === 'b') { e.preventDefault(); openBulkWaModal(); return; }
             if ((e.ctrlKey || e.metaKey) && e.key === '.') { e.preventDefault(); toggleCompactMode(); return; }
         }
