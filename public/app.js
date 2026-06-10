@@ -186,7 +186,13 @@ function buildWaUrl(phone) {
     const cleaned = cleanPhone(phone);
     if (!cleaned) return null;
     const msg = state.defaultWaMessage.trim();
-    return msg ? `https://wa.me/${cleaned}?text=${encodeURIComponent(msg)}` : `https://wa.me/${cleaned}`;
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    if (isMobile) {
+        return msg ? `https://wa.me/${cleaned}?text=${encodeURIComponent(msg)}` : `https://wa.me/${cleaned}`;
+    } else {
+        return msg ? `https://web.whatsapp.com/send?phone=${cleaned}&text=${encodeURIComponent(msg)}` : `https://web.whatsapp.com/send?phone=${cleaned}`;
+    }
 }
 
 // ─── No-WA ────────────────────────────────────────────────────────────────────
