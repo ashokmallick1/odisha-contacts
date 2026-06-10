@@ -1,0 +1,9 @@
+node_modules/
+contacts.db
+analytics_cache.json
+.env
+.DS_Store
+
+*.db-shm
+*.db-wal
+search_results.csv
