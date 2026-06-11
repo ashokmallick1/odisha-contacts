@@ -151,6 +151,11 @@
                 <input type="password" id="password" placeholder="Enter any password" required>
             </div>
 
+            <div class="input-group">
+                <label for="device_name">Device Name</label>
+                <input type="text" id="device_name" placeholder="e.g. John's iPhone" required>
+            </div>
+
             <div id="login-error" class="error-message">Invalid credentials</div>
 
             <button type="submit" class="btn-login">Sign In</button>
@@ -165,8 +170,31 @@
             document.body.classList.add('light-theme');
         }
 
+        // Pre-fill device name if it exists
+        const savedDevice = localStorage.getItem('device_name');
+        if (savedDevice) {
+            document.getElementById('device_name').value = savedDevice;
+        } else {
+            // Auto-generate a default fallback name based on user agent (basic heuristic)
+            const ua = navigator.userAgent.toLowerCase();
+            let defName = 'Desktop';
+            if (ua.includes('iphone')) defName = 'iPhone';
+            else if (ua.includes('ipad')) defName = 'iPad';
+            else if (ua.includes('android')) defName = 'Android Device';
+            else if (ua.includes('mac')) defName = 'MacBook/iMac';
+            else if (ua.includes('win')) defName = 'Windows PC';
+            document.getElementById('device_name').value = defName;
+        }
+
         document.getElementById('login-form').addEventListener('submit', function(e) {
             e.preventDefault();
+            
+            // Save the device name for subsequent sessions
+            const deviceName = document.getElementById('device_name').value.trim();
+            if (deviceName) {
+                localStorage.setItem('device_name', deviceName);
+            }
+
             const btn = document.querySelector('.btn-login');
             btn.textContent = 'Authenticating...';
             btn.style.opacity = '0.8';

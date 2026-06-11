@@ -1176,7 +1176,12 @@ function setupEventListeners() {
             if (tr) {
                 const id = tr.querySelector('.col-id').textContent.replace('#', '');
                 try {
-                    await fetch('/api/contacts/' + id + '/mark-used', { method: 'POST' });
+                    const deviceName = localStorage.getItem('device_name') || 'Unknown Device';
+                    await fetch('/api/contacts/' + id + '/mark-used', { 
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ device_name: deviceName })
+                    });
                     if (!state.showUsed) tr.remove(); // Visually hide the row
                 } catch(err) { console.error('Failed to mark used', err); }
             }

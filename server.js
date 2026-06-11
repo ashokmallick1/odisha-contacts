@@ -50,8 +50,11 @@ function initDb() {
         db.exec(`
             CREATE TABLE IF NOT EXISTS app_users (username TEXT PRIMARY KEY, password TEXT, role TEXT);
             CREATE TABLE IF NOT EXISTS used_contacts (contact_id INTEGER PRIMARY KEY);
-            CREATE TABLE IF NOT EXISTS user_activity_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, contact_id INTEGER, action TEXT, date_sent TEXT);
+            CREATE TABLE IF NOT EXISTS user_activity_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, device_name TEXT, contact_id INTEGER, action TEXT, date_sent TEXT);
         `);
+        
+        // Migration: add device_name column if missing
+        try { db.exec("ALTER TABLE user_activity_logs ADD COLUMN device_name TEXT"); } catch (_) {}
         
         const adminExists = db.prepare("SELECT 1 FROM app_users WHERE username = 'admin'").all().length > 0;
         if (!adminExists) {
@@ -259,11 +262,12 @@ app.post('/api/contacts/:id/mark-used', (req, res) => {
     if (!id) return res.status(400).json({ error: 'Invalid ID' });
     try {
         const username = req.user ? req.user.username : 'unknown';
+        const deviceName = req.body.device_name || 'Unknown Device';
         const dateSent = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
         
         const db = getDbConnection();
         db.prepare("INSERT OR IGNORE INTO used_contacts (contact_id) VALUES (?)").run(id);
-        db.prepare("INSERT INTO user_activity_logs (username, contact_id, action, date_sent) VALUES (?, ?, ?, ?)").run(username, id, 'whatsapp', dateSent);
+        db.prepare("INSERT INTO user_activity_logs (username, device_name, contact_id, action, date_sent) VALUES (?, ?, ?, ?, ?)").run(username, deviceName, id, 'whatsapp', dateSent);
         
         res.json({ success: true });
     } catch(err) { res.status(500).json({ error: err.message }); }
@@ -277,9 +281,9 @@ app.get('/api/admin/activity', (req, res) => {
     try {
         const db = getDbConnection();
         const activity = db.prepare(`
-            SELECT date_sent as date, username, COUNT(*) as count 
+            SELECT date_sent as date, username, device_name, COUNT(*) as count 
             FROM user_activity_logs 
-            GROUP BY date_sent, username 
+            GROUP BY date_sent, username, device_name 
             ORDER BY date_sent DESC, username ASC
         `).all();
         res.json(activity);

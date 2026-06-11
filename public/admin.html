@@ -41,6 +41,19 @@
             <canvas id="activityChart" height="200"></canvas>
         </div>
 
+        <h3>Activity Breakdown</h3>
+        <table style="margin-bottom: 30px;">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Username</th>
+                    <th>Device Name</th>
+                    <th>Messages Sent</th>
+                </tr>
+            </thead>
+            <tbody id="activity-list"></tbody>
+        </table>
+
         <h3>Existing Users</h3>
         <table>
             <thead>
@@ -90,16 +103,20 @@
                 const data = await res.json();
                 
                 // Process data for Chart.js
-                // data format: [{date: '2026-06-10', username: 'admin', count: 5}, ...]
-                const dates = [...new Set(data.map(d => d.date))].sort();
-                const users = [...new Set(data.map(d => d.username))];
+                // data format: [{date: '2026-06-10', username: 'admin', device_name: 'Desktop PC', count: 5}, ...]
+                data.forEach(d => {
+                    d.user_device = `${d.username} (${d.device_name || 'Unknown'})`;
+                });
                 
-                const datasets = users.map(user => {
+                const dates = [...new Set(data.map(d => d.date))].sort();
+                const userDevices = [...new Set(data.map(d => d.user_device))];
+                
+                const datasets = userDevices.map(ud => {
                     const color = `hsl(${Math.random() * 360}, 70%, 50%)`;
                     return {
-                        label: user,
+                        label: ud,
                         data: dates.map(date => {
-                            const entry = data.find(d => d.date === date && d.username === user);
+                            const entry = data.find(d => d.date === date && d.user_device === ud);
                             return entry ? entry.count : 0;
                         }),
                         backgroundColor: color,
@@ -107,6 +124,20 @@
                         borderWidth: 2,
                         tension: 0.1
                     };
+                });
+                
+                // Populate activity table
+                const activityTbody = document.getElementById('activity-list');
+                activityTbody.innerHTML = '';
+                data.forEach(d => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${d.date}</td>
+                        <td>${d.username}</td>
+                        <td>${d.device_name || 'Unknown'}</td>
+                        <td>${d.count}</td>
+                    `;
+                    activityTbody.appendChild(tr);
                 });
                 
                 const ctx = document.getElementById('activityChart').getContext('2d');
