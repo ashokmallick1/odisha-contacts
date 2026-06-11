@@ -104,6 +104,9 @@ const el = {
     // WA Bar
     waDefaultMessage: document.getElementById('wa-default-message'),
     waCopyMsg: document.getElementById('wa-copy-msg'),
+    waDeleteTemplate: document.getElementById('wa-delete-template'),
+    waTestPhone: document.getElementById('wa-test-phone'),
+    waTestSend: document.getElementById('wa-test-send'),
     waBulkBtn: document.getElementById('wa-bulk-btn'),
     waClearMsg: document.getElementById('wa-clear-msg'),
     // Modals
@@ -1492,6 +1495,24 @@ function initWaBar() {
     const delBtn = document.getElementById('wa-delete-template');
     if (delBtn) delBtn.addEventListener('click', deleteWaTemplate);
     
+    if (el.waTestSend) {
+        el.waTestSend.addEventListener('click', () => {
+            const phone = el.waTestPhone.value.replace(/\D/g, '');
+            if (!phone) {
+                showToast('Please enter a valid test phone number', 'error');
+                return;
+            }
+            let msg = state.defaultWaMessage.trim();
+            if (!msg) {
+                showToast('Please enter a WhatsApp message to test', 'error');
+                return;
+            }
+            const url = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
+            window.open(url, '_blank', 'noopener,noreferrer');
+            showToast('Test message opened in WhatsApp!', 'success');
+        });
+    }
+
     fetchWaTemplates();
 }
 
