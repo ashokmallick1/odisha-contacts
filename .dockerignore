@@ -4,4 +4,8 @@ npm-debug.log
 .env
 
 contacts.db
+contacts.db*
+contacts.db-shm
+contacts.db-wal
+search_results.csv
 analytics_cache.json

@@ -2,6 +2,7 @@ const express    = require('express');
 const compression = require('compression');
 const { DatabaseSync } = require('node:sqlite');
 const path       = require('path');
+const cookieParser = require('cookie-parser');
 
 const app  = express();
 const PORT = process.env.PORT || 3005;
@@ -79,22 +80,60 @@ function checkFts() {
 app.use(compression());
 app.use(express.json());
 
-// ─── Basic Authentication ──────────────────────────────────────────────────────
+app.use(cookieParser());
+
+// ─── Cookie Authentication ──────────────────────────────────────────────────────
+const publicPaths = ['/', '/index.html', '/style.css', '/favicon.ico', '/api/login'];
+
 app.use((req, res, next) => {
-    // Allow public access to assets if needed, but here we secure everything
-    const b64auth = (req.headers.authorization || '').split(' ')[1] || '';
-    const [login, password] = Buffer.from(b64auth, 'base64').toString().split(':');
+    if (publicPaths.includes(req.path)) {
+        return next();
+    }
     
+    // Also allow images or other static assets if they are requested directly
+    if (req.path.match(/\.(png|jpg|jpeg|gif|svg|ico)$/)) {
+        return next();
+    }
+
+    const authCookie = req.cookies.auth;
+    if (authCookie) {
+        const [login, password] = Buffer.from(authCookie, 'base64').toString().split(':');
+        try {
+            const user = getDbConnection().prepare("SELECT * FROM app_users WHERE username = ? AND password = ?").all(login, password)[0];
+            if (user) {
+                req.user = user;
+                return next();
+            }
+        } catch(e) {}
+    }
+    
+    // Authentication failed
+    if (req.path.startsWith('/api/')) {
+        return res.status(401).json({ error: 'Authentication required' });
+    } else {
+        return res.redirect('/index.html');
+    }
+});
+
+app.post('/api/login', (req, res) => {
+    const { username, password } = req.body;
     try {
-        const user = getDbConnection().prepare("SELECT * FROM app_users WHERE username = ? AND password = ?").all(login, password)[0];
+        const user = getDbConnection().prepare("SELECT * FROM app_users WHERE username = ? AND password = ?").all(username, password)[0];
         if (user) {
-            req.user = user;
-            return next();
+            const token = Buffer.from(`${username}:${password}`).toString('base64');
+            res.cookie('auth', token, { httpOnly: true, sameSite: 'strict', maxAge: 30 * 24 * 60 * 60 * 1000 });
+            res.json({ success: true, role: user.role });
+        } else {
+            res.status(401).json({ error: 'Invalid credentials' });
         }
-    } catch(e) {}
-    
-    res.set('WWW-Authenticate', 'Basic realm="Secure Contacts Database"');
-    res.status(401).send('Authentication required.');
+    } catch(e) {
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+app.post('/api/logout', (req, res) => {
+    res.clearCookie('auth');
+    res.json({ success: true });
 });
 
 app.use(express.static(path.join(__dirname, 'public')));

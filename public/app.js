@@ -34,7 +34,18 @@ let state = {
     ftsAvailable: false
 };
 
-// ─── DOM Elements ─────────────────────────────────────────────────────────────
+// ─── App State & DOM Elements ───────────────────────────────────────────────────
+
+// Global fetch interceptor to handle 401 Unauthorized (session expired)
+const originalFetch = window.fetch;
+window.fetch = async function(...args) {
+    const response = await originalFetch.apply(this, args);
+    if (response.status === 401) {
+        window.location.href = 'index.html';
+    }
+    return response;
+};
+
 const el = {
     themeToggle: document.getElementById('theme-toggle'),
     compactToggle: document.getElementById('compact-toggle'),

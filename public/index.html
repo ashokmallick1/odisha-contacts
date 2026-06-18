@@ -186,7 +186,7 @@
             document.getElementById('device_name').value = defName;
         }
 
-        document.getElementById('login-form').addEventListener('submit', function(e) {
+        document.getElementById('login-form').addEventListener('submit', async function(e) {
             e.preventDefault();
             
             // Save the device name for subsequent sessions
@@ -196,13 +196,35 @@
             }
 
             const btn = document.querySelector('.btn-login');
+            const errorEl = document.getElementById('login-error');
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
             btn.textContent = 'Authenticating...';
             btn.style.opacity = '0.8';
+            errorEl.style.display = 'none';
             
-            // Mock authentication delay
-            setTimeout(() => {
-                window.location.href = 'app.html';
-            }, 800);
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+
+                if (response.ok) {
+                    window.location.href = 'app.html';
+                } else {
+                    errorEl.textContent = 'Invalid username or password';
+                    errorEl.style.display = 'block';
+                    btn.textContent = 'Sign In';
+                    btn.style.opacity = '1';
+                }
+            } catch (err) {
+                errorEl.textContent = 'Network error. Please try again.';
+                errorEl.style.display = 'block';
+                btn.textContent = 'Sign In';
+                btn.style.opacity = '1';
+            }
         });
     </script>
 </body>
