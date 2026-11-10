@@ -5,7 +5,7 @@ const path       = require('path');
 const cookieParser = require('cookie-parser');
 
 const app  = express();
-const PORT = process.env.PORT || 3005;
+const PORT = process.env.PORT || 4000;
 const DB_PATH = path.join(__dirname, 'contacts.db');
 
 // ─── DB Setup ─────────────────────────────────────────────────────────────────
@@ -116,7 +116,9 @@ app.use((req, res, next) => {
 });
 
 app.post('/api/login', (req, res) => {
-    const { username, password } = req.body;
+    const username = (req.body.username || '').trim();
+    const password = (req.body.password || '').trim();
+    console.log(`[LOGIN ATTEMPT] username: '${username}', password: '${password}'`);
     try {
         const user = getDbConnection().prepare("SELECT * FROM app_users WHERE username = ? AND password = ?").all(username, password)[0];
         if (user) {

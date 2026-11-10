@@ -61,6 +61,7 @@ const el = {
     sourceFilterClear: document.getElementById('source-filter-clear'),
     sourceFilterDropdown: document.getElementById('source-filter-dropdown'),
     sourceFilterWrapper: document.getElementById('source-filter-wrapper'),
+    quickDirFilter: document.getElementById('quick-dir-filter'),
     statusFilter: document.getElementById('status-filter'),
     dedupToggle: document.getElementById('dedup-toggle'),
     // exportBtn: removed
@@ -408,6 +409,11 @@ function renderSourceDropdown(query) {
 function applySourceFilter(path) {
     state.sourcePath = path || '';
     el.sourceFilterHidden.value = path || '';
+    if (el.quickDirFilter && ["", "gst", "india%mart", "just%dial", "trade%india", "sulekha"].includes(path.toLowerCase())) {
+        el.quickDirFilter.value = path.toLowerCase();
+    } else if (el.quickDirFilter) {
+        el.quickDirFilter.value = "";
+    }
     if (path) {
         el.sourceFilterInput.value = sourcePathDisplay(path);
         el.sourceFilterClear.classList.remove('hidden');
@@ -1295,6 +1301,9 @@ function setupEventListeners() {
 
     el.searchField.addEventListener('change', () => { state.searchField = el.searchField.value; state.currentPage = 1; if (state.search) fetchContacts(); saveSession(); });
     el.pageLimit.addEventListener('change', () => { state.limit = parseInt(el.pageLimit.value) || 50; state.currentPage = 1; fetchContacts(); });
+    if (el.quickDirFilter) {
+        el.quickDirFilter.addEventListener('change', () => { applySourceFilter(el.quickDirFilter.value); });
+    }
     el.statusFilter.addEventListener('change', () => { state.statusFilter = el.statusFilter.value; applyStatusFilter(); });
 
     el.dedupToggle.addEventListener('click', () => {
